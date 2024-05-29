@@ -51,7 +51,7 @@ namespace Multimedia
             var openImageDialog = new OpenFileDialog
             {
                 CheckFileExists = true,
-                Filter = "Image Files (*.jpg; *.jpeg; *.png; *.bmp; *.gif)|*.jpg; *.jpeg; *.png; *.bmp; *.gif"
+                Filter = "JPEG|*.jpg|PNG|*.png"
             };
             DialogResult result = openImageDialog.ShowDialog();
 
@@ -304,6 +304,40 @@ namespace Multimedia
         {
             selectedColorLabel.Visible = colorMapComboBox.SelectedIndex == 5;
             selectColorButton.Visible = colorMapComboBox.SelectedIndex == 5;
+        }
+
+        private void CompareToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            if (_bitmaps.Count == 0)
+            {
+                return;
+            }
+
+            var form = new CompareForm(_bitmaps.Peek());
+            form.FormClosed += (sender, e) =>
+            {
+                _progress = form.Progress;
+                progressValueToolStripStatusLabel.Text = _progress;
+            };
+
+            form.ShowDialog();
+        }
+
+        private void OnSetSelectionModeToolStripMenuItemsClick(object sender, EventArgs e)
+        {
+            var menuItem = (ToolStripMenuItem)sender;
+            _selectionMode = Enum.Parse<SelectionMode>(menuItem.Text!.Replace("&", ""));
+        }
+
+        private void OnClassificationToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            if (_bitmaps.Count == 0)
+            {
+                return;
+            }
+
+            var menuItem = (ToolStripMenuItem)sender;
+            classificationToolStripDropDownButton.Text = menuItem.Text;
         }
     }
 }
