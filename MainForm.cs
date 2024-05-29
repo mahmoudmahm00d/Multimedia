@@ -5,6 +5,10 @@ namespace Multimedia
 {
     public partial class MainForm : Form
     {
+        private string _progress = "None";
+
+        private SelectionMode _selectionMode = SelectionMode.Rectangle;
+
         // Represent the history of modification
         // The first bitmap is the original image
         private readonly Stack<Bitmap> _bitmaps = [];
@@ -13,7 +17,9 @@ namespace Multimedia
 
         Color? _color;
         private bool _isMouseDown;
-        private Point _startPoint;
+
+        //private Point _startPoint = Point.Empty;
+        private readonly List<Point> _points = [];
         private Rectangle _selectionRectangle;
 
         public MainForm()
@@ -42,7 +48,11 @@ namespace Multimedia
 
         private void OpenToolStripMenuItemClick(object sender, EventArgs e)
         {
-            var openImageDialog = new OpenFileDialog { CheckFileExists = true };
+            var openImageDialog = new OpenFileDialog
+            {
+                CheckFileExists = true,
+                Filter = "Image Files (*.jpg; *.jpeg; *.png; *.bmp; *.gif)|*.jpg; *.jpeg; *.png; *.bmp; *.gif"
+            };
             DialogResult result = openImageDialog.ShowDialog();
 
             if (result == DialogResult.OK)
@@ -74,9 +84,35 @@ namespace Multimedia
                 }
 
                 _isMouseDown = true;
-                _startPoint = e.Location;
-                _selectionRectangle = Rectangle.Empty;
+                if (
+                    _selectionMode == SelectionMode.Rectangle
+                    || _selectionMode == SelectionMode.Ellipse
+                )
+                {
+                    if (_points.Count == 0)
+                    {
+                        _points.Add(e.Location);
+                    }
+                    else
+                    {
+                        _points[0] = e.Location;
+                    }
+
+                    _selectionRectangle = Rectangle.Empty;
+                }
+                else if (_selectionMode == SelectionMode.Polygon)
+                {
+                    _points.Add(e.Location);
+                }
             }
+            else if (e.Button == MouseButtons.Right)
+            {
+                if (_points.Count != 0)
+                {
+                    _points.RemoveAt(_points.Count - 1);
+                }
+            }
+            mainPictureBox.Invalidate();
         }
 
         private void MainPictureBoxMouseMove(object sender, MouseEventArgs e)
@@ -84,11 +120,11 @@ namespace Multimedia
             if (_isMouseDown)
             {
                 var originalImage = _bitmaps.Peek();
-
-                var startX = Math.Min(_startPoint.X, e.X);
-                var startY = Math.Min(_startPoint.Y, e.Y);
-                var width = Math.Abs(_startPoint.X - e.X);
-                var height = Math.Abs(_startPoint.Y - e.Y);
+                var startPoint = _points[0];
+                var startX = Math.Min(startPoint.X, e.X);
+                var startY = Math.Min(startPoint.Y, e.Y);
+                var width = Math.Abs(startPoint.X - e.X);
+                var height = Math.Abs(startPoint.Y - e.Y);
                 width = Math.Min(width, originalImage.Width);
                 height = Math.Min(height, originalImage.Height);
 
@@ -132,11 +168,6 @@ namespace Multimedia
                 return;
             }
 
-            if (_selectionRectangle.Width == 0 || _selectionRectangle.Height == 0)
-            {
-                return;
-            }
-
             Color[] colorMap;
             if (colorMapComboBox.SelectedIndex == 5)
             {
@@ -153,12 +184,36 @@ namespace Multimedia
             }
 
             var originalImage = _bitmaps.Peek();
-            var modifedImage = originalImage.ApplyColorMapOnSelection(
-                _selectionRectangle,
-                colorMap
-            );
+            Bitmap? modifiedImage;
+            if (_selectionMode == SelectionMode.Rectangle)
+            {
+                if (_selectionRectangle.Width < 5 || _selectionRectangle.Height < 5)
+                {
+                    return;
+                }
+
+                modifiedImage = originalImage.ApplyColorMapOnRectangleSelection(
+                    _selectionRectangle,
+                    colorMap
+                );
+            }
+            else if (_selectionMode == SelectionMode.Polygon && _points.Count > 2)
+            {
+                modifiedImage = originalImage.ApplyColorMapOnPolygonSelection(
+                    [.. _points],
+                    colorMap
+                );
+            }
+            else
+            {
+                modifiedImage = originalImage.ApplyColorMapOnEllipseSelection(
+                    _selectionRectangle,
+                    colorMap
+                );
+            }
             // Add item to the history
-            _bitmaps.Push(modifedImage);
+            if (modifiedImage != null)
+                _bitmaps.Push(modifiedImage);
             // Show the modified image
             mainPictureBox.Image = _bitmaps.Peek();
         }
@@ -171,7 +226,35 @@ namespace Multimedia
             }
 
             Rectangle rectangle = _selectionRectangle;
-            e.Graphics.DrawRectangle(new Pen(Color.Red, 1.5F), rectangle);
+            if (_selectionMode == SelectionMode.Rectangle)
+            {
+                e.Graphics.DrawRectangle(new Pen(Color.Red, 1.5F), rectangle);
+            }
+            else if (_selectionMode == SelectionMode.Polygon)
+            {
+                foreach (var point in _points)
+                {
+                    e.Graphics.FillEllipse(
+                        new SolidBrush(Color.DarkRed),
+                        new Rectangle
+                        {
+                            X = point.X - 2,
+                            Y = point.Y - 2,
+                            Width = 4,
+                            Height = 4
+                        }
+                    );
+                }
+
+                if (_points.Count > 1)
+                {
+                    e.Graphics.DrawPolygon(new Pen(Color.Red, 1.5F), _points.ToArray());
+                }
+            }
+            else if (_selectionMode == SelectionMode.Ellipse)
+            {
+                e.Graphics.DrawEllipse(new Pen(Color.Red, 1.5F), _selectionRectangle);
+            }
         }
 
         private void SaveAsToolStripMenuItemClick(object sender, EventArgs e)
