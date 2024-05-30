@@ -1,10 +1,20 @@
-using System.Drawing.Imaging;
+﻿using System.Drawing.Imaging;
+using AForge.Imaging.Filters;
+using AForge.Imaging;
+using System.Windows.Forms;
 using Multimedia.Helpers;
+using Spire.Pdf;
+using Spire.Pdf.Graphics;
 
 namespace Multimedia
 {
+
     public partial class MainForm : Form
     {
+
+        // يستخدم هذا المتحول ليرد التقرير النصي لتمريره الى تابع الضغط
+        public PdfDocument reportPdf = new PdfDocument();
+
         // Represent the history of modification
         // The first bitmap is the original image
         private readonly Stack<Bitmap> _bitmaps = [];
@@ -222,5 +232,118 @@ namespace Multimedia
             selectedColorLabel.Visible = colorMapComboBox.SelectedIndex == 5;
             selectColorButton.Visible = colorMapComboBox.SelectedIndex == 5;
         }
+
+        private void mainPictureBox_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void report_Click(object sender, EventArgs e)
+        {
+            // إنشاء فورم جديد 
+            Form2 form2 = new Form2();
+            form2.Size = new Size(400, 380);
+            form2.Show();
+            // هذا الحدث لتمرير ملف التقرير 
+            form2.PdfSaved += form2_PdfSaved;
+        }
+
+
+        private void form2_PdfSaved(string filePath)
+        {
+            // هنا المتحول العام ياخذ مسار التقرير الذي تم حفظه 
+            reportPdf = new PdfDocument(filePath);
+        }
+
+        private void forrier_Click(object sender, EventArgs e)
+        {
+
+            // Resize the image
+            int newWidth = (int)Math.Pow(2, Math.Ceiling(Math.Log(mainPictureBox.Image.Width) / Math.Log(2)));
+            int newHeight = (int)Math.Pow(2, Math.Ceiling(Math.Log(mainPictureBox.Image.Height) / Math.Log(2)));
+            ResizeBilinear resizeFilter = new ResizeBilinear(newWidth, newHeight);
+            Bitmap resizedImage = resizeFilter.Apply((Bitmap)mainPictureBox.Image);
+            // Make the Image grey 
+            Grayscale filter1 = new Grayscale(0.2125, 0.7154, 0.0721);
+            Bitmap grayImage = filter1.Apply(resizedImage);
+            // Apply FFT to the grayscale image
+            ComplexImage complexImage = ComplexImage.FromBitmap(grayImage);
+            complexImage.ForwardFourierTransform();
+            complexImage.BackwardFourierTransform();
+
+            // تحويل الصورة الناتجة إلى Bitmap
+            Bitmap resultImage = complexImage.ToBitmap();
+            mainPictureBox.Image = resultImage;
+
+        }
     }
+
+    public class Form2 : Form
+    {
+        private TextBox textBox;
+        private Button btnSaveAsPdf;
+        private Button okButton;
+        private PdfDocument doc = new PdfDocument();
+        public delegate void PdfSavedEventHandler(string filePath);
+        public event PdfSavedEventHandler PdfSaved;
+
+        public Form2()
+        {
+            // يتم كتابة النص هنا 
+            textBox = new TextBox
+            {
+                Multiline = true,
+                Size = new Size(400, 280)
+            };
+            Controls.Add(textBox);
+
+            btnSaveAsPdf = new Button
+            {
+                Text = "Save as PDF",
+                Location = new System.Drawing.Point(230, 280),
+                Size = new System.Drawing.Size(120, 30)
+            };
+            btnSaveAsPdf.Click += new EventHandler(btnSaveAsPdf_Click);
+            Controls.Add(btnSaveAsPdf);
+            okButton = new Button
+            {
+                Location = new System.Drawing.Point(30, 280),
+                Size = new System.Drawing.Size(40, 30),
+                Text = "OK"
+            };
+            okButton.Click += new EventHandler(OkButton_Click);
+            Controls.Add(okButton);
+            // هذا الكود يتم وضعه بعد حفظ الملف لاخبار التابع من اجل تمرير الملف PDF
+            
+        }
+
+        private void OkButton_Click(object sender, EventArgs e)
+        {
+            Close();
+
+        }
+
+        private void btnSaveAsPdf_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "PDF files (*.pdf)|*.pdf",
+                Title = "حفظ كملف PDF"
+            };
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                PdfPageBase page = doc.Pages.Add();
+                //   إنشاء فقرة جديدة ووضعها في الملف
+                page.Canvas.DrawString(textBox.Text, new PdfFont(PdfFontFamily.Helvetica, 11), new PdfSolidBrush(Color.Black), 20, 20);
+                doc.SaveToFile(saveFileDialog.FileName);
+                doc.SaveToFile("report.pdf");
+                PdfSaved?.Invoke("report.pdf");
+                doc.Close();
+
+            }
+        }
+
+
+    }
+
 }
