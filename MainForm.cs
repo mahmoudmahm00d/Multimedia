@@ -3,8 +3,10 @@ using AForge.Imaging.Filters;
 using AForge.Imaging;
 using System.Windows.Forms;
 using Multimedia.Helpers;
-using Spire.Pdf;
-using Spire.Pdf.Graphics;
+using PdfSharp.Pdf;
+using PdfSharp.Drawing;
+using System.Drawing;
+using System.Xml.Linq;
 
 namespace Multimedia
 {
@@ -283,13 +285,12 @@ namespace Multimedia
         private TextBox textBox;
         private Button btnSaveAsPdf;
         private Button okButton;
-        private PdfDocument doc = new PdfDocument();
+        private PdfDocument document = new PdfDocument();
         public delegate void PdfSavedEventHandler(string filePath);
         public event PdfSavedEventHandler PdfSaved;
 
         public Form2()
         {
-            // يتم كتابة النص هنا 
             textBox = new TextBox
             {
                 Multiline = true,
@@ -313,7 +314,6 @@ namespace Multimedia
             };
             okButton.Click += new EventHandler(OkButton_Click);
             Controls.Add(okButton);
-            // هذا الكود يتم وضعه بعد حفظ الملف لاخبار التابع من اجل تمرير الملف PDF
             
         }
 
@@ -332,13 +332,21 @@ namespace Multimedia
             };
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                PdfPageBase page = doc.Pages.Add();
-                //   إنشاء فقرة جديدة ووضعها في الملف
-                page.Canvas.DrawString(textBox.Text, new PdfFont(PdfFontFamily.Helvetica, 11), new PdfSolidBrush(Color.Black), 20, 20);
-                doc.SaveToFile(saveFileDialog.FileName);
-                doc.SaveToFile("report.pdf");
+               
+                PdfPage page = document.AddPage();
+                XGraphics gfx = XGraphics.FromPdfPage(page);
+                XFont font = new XFont("Verdana", 20);
+
+                gfx.DrawString(textBox.Text, font, XBrushes.Black,
+                    new XRect(0, 0, page.Width, page.Height),
+                    XStringFormats.TopLeft);
+
+                document.Save(saveFileDialog.FileName);
+                //document.Save("report.pdf");
                 PdfSaved?.Invoke("report.pdf");
-                doc.Close();
+                document.Close();
+
+                
 
             }
         }

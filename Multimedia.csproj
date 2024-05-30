@@ -14,8 +14,7 @@
     <PackageReference Include="Emgu.CV" Version="4.8.1.5350" />
     <PackageReference Include="Emgu.CV.runtime.windows" Version="4.8.1.5350" />
     <PackageReference Include="Emgu.CV.UI" Version="4.8.1.5350" />
-    <PackageReference Include="FreeSpire.Doc" Version="12.2.0" />
-    <PackageReference Include="FreeSpire.PDF" Version="10.2.0" />
+    <PackageReference Include="PDFsharp" Version="6.1.0" />
   </ItemGroup>
 
 </Project>
