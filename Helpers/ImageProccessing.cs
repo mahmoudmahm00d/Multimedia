@@ -233,4 +233,77 @@ internal static class ImageProccessing
 
         return result.ToManagedImage();
     }
+    // تمت إضافة الطلبات ( قص الصورة - إضافة تعليق نصي - ضغط الصورة )
+    private void cropToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    if (_bitmaps.Count < 1 || _selectionRectangle.Width == 0 || _selectionRectangle.Height == 0)
+    {
+        return;
+    }
+
+    var originalImage = _bitmaps.Peek();
+    var croppedImage = originalImage.Clone(_selectionRectangle, originalImage.PixelFormat);
+    using (var graphics = Graphics.FromImage(mainPictureBox.Image))
+    {
+        graphics.FillRectangle(new SolidBrush(Color.White), _selectionRectangle);
+    }
+
+    // إعادة تعيين مستطيل التحديد
+    _selectionRectangle = Rectangle.Empty;
+    _bitmaps.Push(croppedImage);
+    mainPictureBox.Image = _bitmaps.Peek();
+    mainPictureBox.Invalidate();
+}
+
+private void addTesxtToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    textBox1.Visible = true;
+}
+
+private void textBox1_TextChanged(object sender, EventArgs e)
+{
+    Graphics graphics = Graphics.FromImage(mainPictureBox.Image);
+    Brush brush = new SolidBrush(Color.Black);
+    // Define text font
+    Font arial = new Font("Arial", 25, FontStyle.Regular);
+    // Define rectangle
+    Rectangle rectangle = new Rectangle(0, 0, 0, 0);
+    // Draw text on image
+    graphics.DrawString(textBox1.Text, arial, brush, rectangle);
+
+    mainPictureBox.Invalidate();
+
+}
+private void compressToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    if (_bitmaps.Count < 1)
+    {
+        return;
+    }
+
+    Mat imageMat = new Mat();
+
+    Bitmap bitmap = _bitmaps.Pop();// استخراج الصورة من الـ stack
+    imageMat = bitmap.ToImage<Bgr, byte>().Mat;
+    CvInvoke.CvtColor(imageMat, imageMat, ColorConversion.Bgr2Gray);
+    Mat floatImage = new Mat();
+    imageMat.ConvertTo(floatImage, DepthType.Cv32F);
+    CvInvoke.Dct(floatImage, floatImage, DctType.Forward);
+    CvInvoke.Dct(floatImage, floatImage, DctType.Inverse);
+
+    Mat outputMat = new Mat();
+
+    floatImage.ConvertTo(outputMat, DepthType.Cv8U);
+
+    Bitmap bit = outputMat.ToBitmap();
+
+    _bitmaps.Push(bit);
+    mainPictureBox.Image = bit;
+
+}
+
+private void addSoundToolStripMenuItem_Click(object sender, EventArgs e)
+{
+       
+}
 }
