@@ -5,6 +5,12 @@ namespace Multimedia.Helpers;
 
 internal static class ImageProccessing
 {
+    public static Bitmap MergeTwoImages(Bitmap one, Bitmap two)
+    {
+        Bitmap bitmap = new (one.Width, one.Height);
+        return bitmap;
+    }
+
     public static Bitmap ApplyColorMapOnSelection(
         this Bitmap bitmap,
         Rectangle selectionRectangle,
